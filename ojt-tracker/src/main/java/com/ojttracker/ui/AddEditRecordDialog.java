@@ -6,145 +6,24 @@ import com.ojttracker.model.OJTRecord;
 import com.ojttracker.service.OJTRecordService;
 import com.ojttracker.util.DateUtils;
 import com.ojttracker.util.ValidationUtils;
-
-import javax.swing.BorderFactory;
-import javax.swing.JComboBox;
-import javax.swing.JDialog;
-import javax.swing.JLabel;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.JTextField;
-import java.awt.FlowLayout;
-import java.awt.Frame;
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.Insets;
+import javax.swing.*;
+import java.awt.*;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
 
-/**
- * Modal dialog for adding or editing a single OJT attendance record.
- * Total hours are always computed automatically; the user never types
- * them in directly (spec section 11).
- */
 public class AddEditRecordDialog extends JDialog {
-
-    private final OJTRecordService recordService;
-    private final int studentId;
-    private final OJTRecord existingRecord; // null when adding
-    private final Runnable onSaved;
-
-    private final JComboBox<LocalDate> dateField = FormFields.dateComboBox(
-            DateUtils.buildDateOptions(LocalDate.now().minusDays(30), 90), LocalDate.now());
-    private final JComboBox<LocalTime> timeInField = FormFields.timeComboBox(
-            DateUtils.buildTimeOptions(30), LocalTime.of(8, 0));
-    private final JComboBox<LocalTime> timeOutField = FormFields.timeComboBox(
-            DateUtils.buildTimeOptions(30), LocalTime.of(17, 0));
-    private final JTextField breakField = FormFields.textField("hours, e.g. 1.0");
-    private final JTextField remarksField = FormFields.textField();
-
-    public AddEditRecordDialog(Frame owner, OJTRecordService recordService, int studentId,
-                                OJTRecord existingRecord, Runnable onSaved) {
-        super(owner, existingRecord == null ? "Add OJT Record" : "Edit OJT Record", true);
-        this.recordService = recordService;
-        this.studentId = studentId;
-        this.existingRecord = existingRecord;
-        this.onSaved = onSaved;
-
-        getContentPane().setBackground(Theme.SECONDARY);
-        setLayout(new java.awt.BorderLayout());
-        build();
-        prefill();
-        pack();
-        setLocationRelativeTo(owner);
-    }
-
-    private void build() {
-        JPanel form = new JPanel(new GridBagLayout());
-        form.setBackground(Theme.SECONDARY);
-        form.setBorder(BorderFactory.createEmptyBorder(24, 28, 12, 28));
-
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(8, 8, 8, 8);
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        int row = 0;
-        row = FormFields.addRow(form, gbc, row, "Date *", dateField);
-        row = FormFields.addRow(form, gbc, row, "Time In *", timeInField);
-        row = FormFields.addRow(form, gbc, row, "Time Out *", timeOutField);
-        row = FormFields.addRow(form, gbc, row, "Break (hours)", breakField);
-        row = FormFields.addRow(form, gbc, row, "Remarks", remarksField);
-
-        RoundedButton cancel = new RoundedButton("Cancel", RoundedButton.Style.SECONDARY);
-        cancel.addActionListener(e -> dispose());
-        RoundedButton save = new RoundedButton("Save Record", RoundedButton.Style.PRIMARY);
-        save.addActionListener(e -> save());
-
-        JPanel buttonRow = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        buttonRow.setBackground(Theme.SECONDARY);
-        buttonRow.setBorder(BorderFactory.createEmptyBorder(0, 0, 20, 24));
-        buttonRow.add(cancel);
-        buttonRow.add(save);
-
-        add(form, java.awt.BorderLayout.CENTER);
-        add(buttonRow, java.awt.BorderLayout.SOUTH);
-        setMinimumSize(new java.awt.Dimension(460, 360));
-    }
-
-    private void prefill() {
-        if (existingRecord != null) {
-            dateField.setSelectedItem(existingRecord.getWorkDate());
-            setTimeValue(timeInField, existingRecord.getTimeIn());
-            setTimeValue(timeOutField, existingRecord.getTimeOut());
-            breakField.setText(String.valueOf(existingRecord.getBreakHours()));
-            remarksField.setText(existingRecord.getRemarks());
-        } else {
-            dateField.setSelectedItem(LocalDate.now());
-            breakField.setText("1.0");
-        }
-    }
-
-    private void save() {
-        try {
-            LocalDate date = FormFields.readDateValue(dateField.getSelectedItem());
-            LocalTime timeIn = readTimeValue(timeInField);
-            LocalTime timeOut = readTimeValue(timeOutField);
-            if (date == null || timeIn == null || timeOut == null) {
-                throw new ValidationUtils.ValidationException(
-                        "Please select valid date and time values.");
-            }
-            double breakHours = breakField.getText().isBlank() ? 0.0 : Double.parseDouble(breakField.getText().trim());
-            String remarks = remarksField.getText().trim();
-
-            if (existingRecord == null) {
-                recordService.addRecord(studentId, date, timeIn, timeOut, breakHours, remarks);
-            } else {
-                recordService.updateRecord(existingRecord.getId(), studentId, date, timeIn, timeOut,
-                        breakHours, remarks);
-            }
-            onSaved.run();
-            dispose();
-        } catch (ValidationUtils.ValidationException ex) {
-            JOptionPane.showMessageDialog(this, ex.getMessage(), "Please check your input",
-                    JOptionPane.WARNING_MESSAGE);
-        } catch (DateTimeParseException ex) {
-            JOptionPane.showMessageDialog(this, "Please enter the date as yyyy-MM-dd (e.g. 2026-08-26).",
-                    "Invalid Date", JOptionPane.WARNING_MESSAGE);
-        } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(this, "Break duration must be a number.", "Invalid Input",
-                    JOptionPane.WARNING_MESSAGE);
-        }
-    }
-
-    private void setTimeValue(JComboBox<LocalTime> field, LocalTime value) {
-        field.getEditor().setItem(DateUtils.formatTime(value));
-    }
-
-    private LocalTime readTimeValue(JComboBox<LocalTime> field) {
-        Object value = field.getEditor().getItem();
-        if (value instanceof LocalTime) {
-            return (LocalTime) value;
-        }
-        return DateUtils.parseTimeFlexible(String.valueOf(value));
-    }
+    private final OJTRecordService service; private final int studentId; private final OJTRecord existing; private final Runnable saved;
+    private final JComboBox<LocalDate> date=FormFields.dateComboBox(DateUtils.buildDateOptions(LocalDate.now().minusDays(30),90),LocalDate.now());
+    private final JComboBox<LocalTime> morningIn=FormFields.timeComboBox(DateUtils.buildTimeOptions(30),LocalTime.of(8,0));
+    private final JComboBox<LocalTime> morningOut=FormFields.timeComboBox(DateUtils.buildTimeOptions(30),LocalTime.of(12,0));
+    private final JComboBox<LocalTime> afternoonIn=FormFields.timeComboBox(DateUtils.buildTimeOptions(30),LocalTime.of(13,0));
+    private final JComboBox<LocalTime> afternoonOut=FormFields.timeComboBox(DateUtils.buildTimeOptions(30),LocalTime.of(17,0));
+    private final JTextField breakField=FormFields.textField("hours, e.g. 1.0"), remarks=FormFields.textField();
+    public AddEditRecordDialog(Frame owner,OJTRecordService service,int studentId,OJTRecord existing,Runnable saved){super(owner,existing==null?"Add OJT Record":"Edit OJT Record",true);this.service=service;this.studentId=studentId;this.existing=existing;this.saved=saved;getContentPane().setBackground(Theme.SECONDARY);setLayout(new BorderLayout());build();prefill();pack();setLocationRelativeTo(owner);}
+    private void build(){JPanel f=new JPanel(new GridBagLayout());f.setBackground(Theme.SECONDARY);f.setBorder(BorderFactory.createEmptyBorder(24,28,12,28));GridBagConstraints g=new GridBagConstraints();g.insets=new Insets(8,8,8,8);g.fill=GridBagConstraints.HORIZONTAL;int r=0;r=FormFields.addRow(f,g,r,"Date *",date);r=FormFields.addRow(f,g,r,"Morning Time In *",morningIn);r=FormFields.addRow(f,g,r,"Morning Time Out *",morningOut);r=FormFields.addRow(f,g,r,"Afternoon Time In *",afternoonIn);r=FormFields.addRow(f,g,r,"Afternoon Time Out *",afternoonOut);r=FormFields.addRow(f,g,r,"Break (hours)",breakField);r=FormFields.addRow(f,g,r,"Remarks",remarks);RoundedButton cancel=new RoundedButton("Cancel",RoundedButton.Style.SECONDARY), save=new RoundedButton("Save Record",RoundedButton.Style.PRIMARY);cancel.addActionListener(e->dispose());save.addActionListener(e->save());JPanel b=new JPanel(new FlowLayout(FlowLayout.RIGHT));b.setBackground(Theme.SECONDARY);b.add(cancel);b.add(save);add(f,BorderLayout.CENTER);add(b,BorderLayout.SOUTH);setMinimumSize(new Dimension(520,480));}
+    private void prefill(){if(existing==null){breakField.setText("1.0");return;}date.setSelectedItem(existing.getWorkDate());set(morningIn,existing.getMorningTimeIn());set(morningOut,existing.getMorningTimeOut());set(afternoonIn,existing.getAfternoonTimeIn());set(afternoonOut,existing.getAfternoonTimeOut());breakField.setText(String.valueOf(existing.getBreakHours()));remarks.setText(existing.getRemarks());}
+    private void set(JComboBox<LocalTime> f,LocalTime v){if(v!=null)f.getEditor().setItem(DateUtils.formatTime(v));}
+    private LocalTime read(JComboBox<LocalTime> f){Object v=f.getEditor().getItem();return v instanceof LocalTime?(LocalTime)v:DateUtils.parseTimeFlexible(String.valueOf(v));}
+    private void save(){try{LocalDate d=FormFields.readDateValue(date.getSelectedItem());LocalTime mi=read(morningIn),mo=read(morningOut),ai=read(afternoonIn),ao=read(afternoonOut);if(d==null||mi==null||mo==null||ai==null||ao==null)throw new ValidationUtils.ValidationException("Please select valid date and time values.");double br=breakField.getText().isBlank()?0:Double.parseDouble(breakField.getText().trim());if(existing==null)service.addRecord(studentId,d,mi,mo,ai,ao,br,remarks.getText().trim());else service.updateRecord(existing.getId(),studentId,d,mi,mo,ai,ao,br,remarks.getText().trim());saved.run();dispose();}catch(ValidationUtils.ValidationException|NumberFormatException e){JOptionPane.showMessageDialog(this,e.getMessage(),"Please check your input",JOptionPane.WARNING_MESSAGE);}catch(DateTimeParseException e){JOptionPane.showMessageDialog(this,"Please enter a valid date.","Invalid Date",JOptionPane.WARNING_MESSAGE);}}
 }
